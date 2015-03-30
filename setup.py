@@ -17,6 +17,12 @@ version = '0.1dev'
 
 install_requires = [
     'Kotti>=0.10b1',
+    'functools32',
+    #'PySide',
+    'lxml',
+    #'sqlalchemy',
+    'python-amazon-simple-product-api',
+    'xlrd'
 ]
 
 
@@ -50,6 +56,9 @@ setup(
         'fanstatic.libraries': [
             'busybrowse = busybrowse.fanstatic:library',
         ],
+        'console_scripts': [
+            'busybrowse-importer = busybrowse.importer:importer_command',
+        ]
     },
     extras_require={},
 )
