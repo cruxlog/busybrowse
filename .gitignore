@@ -91,3 +91,8 @@ var/
 bin/
 include/
 local/
+
+# My stuff
+src/
+secret.ini
+pip-selfcheck.json
