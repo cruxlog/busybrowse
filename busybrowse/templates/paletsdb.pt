@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+  xml:lang="en"
+  xmlns:i18n="http://xml.zope.org/namespaces/i18n"
+  xmlns:tal="http://xml.zope.org/namespaces/tal"
+  xmlns:metal="http://xml.zope.org/namespaces/metal"
+  metal:use-macro="api.macro('kotti:templates/view/master.pt')">
+
+  <article metal:fill-slot="content"
+    class="content paletdb-view"
+    i18n:domain="busybrowse">
+
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">Palets Database</h3>
+      </div>
+      <div class="panel-body">
+        <ul class="list-group"> 
+          <li tal:repeat="palet palets" class="list-group-item">
+            <a href="${request.resource_url(palet)}">Palet title</a>
+          </li>
+        </ul>
+      </div>
+      <div class="panel-footer">
+      </div>
+    </div>
+
+  </article>
+</html>

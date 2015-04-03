@@ -5,7 +5,7 @@ Created on 2015-03-29
 :author: Cruxlog (cruxlog@pixelblaster.ro)
 """
 
-from kotti.resources import File
+from kotti.resources import Document
 from pyramid.i18n import TranslationStringFactory
 
 _ = TranslationStringFactory('busybrowse')
@@ -23,10 +23,14 @@ def kotti_configure(settings):
     :type settings: dict
     """
 
+    settings['kotti.populators'] = 'busybrowse.resources.populate'
     settings['pyramid.includes'] += ' busybrowse'
-    settings['kotti.available_types'] += ' busybrowse.resources.CustomContent'
+    settings['kotti.available_types'] += ' busybrowse.resources.Palet busybrowse.resources.Product'
     settings['kotti.fanstatic.view_needed'] += ' busybrowse.fanstatic.css_and_js'
-    File.type_info.addable_to.append('CustomContent')
+
+    Document.type_info.selectable_default_views.append(
+        ('paletsdb', 'Palets DB')
+    )
 
 
 def includeme(config):

@@ -1,6 +1,6 @@
 #from db import Pallet, Product, session
 #import os
-from busybrowse.resources import Pallet, Product
+from busybrowse.resources import Palet, Product
 from amazon.api import AmazonAPI, AsinNotFound
 from kotti import get_settings
 from kotti import DBSession
@@ -133,7 +133,7 @@ def main(xls_path):
     print "Got {} pallets".format(len(pallets))
 
     for pallet_row in pallets:
-        pallet = Pallet.create()
+        pallet = Palet.create()
         DBSession.add(pallet)
         for product_row in pallet_row:
             pallet.entries.append(Product(product_row))

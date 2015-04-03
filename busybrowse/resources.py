@@ -5,8 +5,11 @@ Created on 2015-03-29
 :author: Cruxlog (cruxlog@pixelblaster.ro)
 """
 
+#from kotti.interfaces import IDefaultWorkflow
+#from zope.interface import implements
+
 from busybrowse import _
-from kotti.interfaces import IDefaultWorkflow
+from kotti.resources import Base
 from kotti.resources import Content
 from kotti.resources import DBSession
 from sqlalchemy import Boolean, Float
@@ -14,24 +17,55 @@ from sqlalchemy import Column
 from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
 from sqlalchemy import String  #, DateTime
+from sqlalchemy import Table
 from sqlalchemy import Unicode
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import functions
-from zope.interface import implements
 
 
 URLType = String(512)
 
 
-class Pallet(Content):
-    __tablename__ = 'pallets'
+product_to_secondary_categories_table = Table(
+    'p2sc', Base.metadata,
+    Column('product_id', Integer, ForeignKey('products.id')),
+    Column('category_id', Integer, ForeignKey('categories.id')),
+)
+
+
+class Category(Content):
+    __tablename__ = "categories"
+    id = Column(Integer, ForeignKey('contents.id'), primary_key=True)
+
+    products_with_main_category = relationship(
+        "Product", backref="main_category",
+        foreign_key="Product.main_category_id") # many to one
+
+    products_with_secondary_category = relationship(
+        "Product", secondary=product_to_secondary_categories_table,\
+        backref="secondary_categories",
+    )
+
+
+class Palet(Content):
+    __tablename__ = 'palets'
 
     id = Column(Integer, ForeignKey('contents.id'), primary_key=True)
     unique_id = Column(Integer) # used by humans, can be edited
 
     of_interest = Column(Boolean)   # daca e selectata ca fiind de interes
-    # entries = relationship("Product", backref='pallet',
-    #                        foreign_keys=['products.c.pallet_id'])
+    entries = relationship("Product", backref='palet',
+                           foreign_keys="[Product.palet_id]")
+
+    type_info = Content.type_info.copy(
+        name=u'Palet',
+        title=_(u'Palet'),
+        add_view=u'add_palet',
+        addable_to=[u'Document'],
+        selectable_default_views=[
+            #("alternative-view", _(u"alternative view")),
+        ],
+    )
 
     @classmethod
     def create(cls):
@@ -54,7 +88,8 @@ class Product(Content):
     __tablename__ = 'products'
 
     id = Column(Integer, ForeignKey('contents.id'), primary_key=True)
-    pallet_id = Column(Integer, ForeignKey('pallets.id'), index=True)
+    palet_id = Column(Integer, ForeignKey('palets.id'), index=True)
+    main_category_id = Column(Integer, ForeignKey('categories.id'), index=True)
 
     title = Column(Unicode(512), index=True)
     condition = Column(Unicode(128))   # C-Ware
@@ -70,7 +105,17 @@ class Product(Content):
     viewed = Column(Boolean, index=True)        # a fost vazut produsul?
     of_interest = Column(Boolean, index=True)   # selectata ca fiind de interes
 
-    def __init__(self, info):
+    type_info = Content.type_info.copy(
+        name=u'Product',
+        title=_(u'Product'),
+        add_view=u'add_product',
+        addable_to=[u'Document'],
+        selectable_default_views=[
+            #("alternative-view", _(u"alternative view")),
+        ],
+    )
+
+    def __init__(self, **info):
         """
             {u'ASIN': u'B000FA1A0E',
             u'Bezeichnung': u'Seat 2 Go Pick Up',
@@ -88,34 +133,45 @@ class Product(Content):
         self.net_price = info['VK netto']
 
 
-class CustomContent(Content):
-    """ A custom content type. """
+# class CustomContent(Content):
+#     """ A custom content type. """
+#
+#     implements(IDefaultWorkflow)
+#
+#     id = Column(Integer, ForeignKey('contents.id'), primary_key=True)
+#     custom_attribute = Column(Unicode(1000))
+#
+#     type_info = Content.type_info.copy(
+#         name=u'CustomContent',
+#         title=_(u'CustomContent'),
+#         add_view=u'add_custom_content',
+#         addable_to=[u'Document'],
+#         selectable_default_views=[
+#             ("alternative-view", _(u"Alternative view")),
+#         ],
+#     )
+#
+#     def __init__(self, custom_attribute=None, **kwargs):
+#         """ Constructor
+#
+#         :param custom_attribute: A very custom attribute
+#         :type custom_attribute: unicode
+#
+#         :param **kwargs: Arguments that are passed to the base class(es)
+#         :type **kwargs: see :class:`kotti.resources.Content`
+#         """
+#
+#         super(CustomContent, self).__init__(**kwargs)
+#
+#         self.custom_attribute = custom_attribute
 
-    implements(IDefaultWorkflow)
+def populate():
+    from kotti.populate import populate as kotti_populate
+    from kotti.resources import get_root
+    from kotti.resources import Document
 
-    id = Column(Integer, ForeignKey('contents.id'), primary_key=True)
-    custom_attribute = Column(Unicode(1000))
-
-    type_info = Content.type_info.copy(
-        name=u'CustomContent',
-        title=_(u'CustomContent'),
-        add_view=u'add_custom_content',
-        addable_to=[u'Document'],
-        selectable_default_views=[
-            ("alternative-view", _(u"Alternative view")),
-        ],
-    )
-
-    def __init__(self, custom_attribute=None, **kwargs):
-        """ Constructor
-
-        :param custom_attribute: A very custom attribute
-        :type custom_attribute: unicode
-
-        :param **kwargs: Arguments that are passed to the base class(es)
-        :type **kwargs: see :class:`kotti.resources.Content`
-        """
-
-        super(CustomContent, self).__init__(**kwargs)
-
-        self.custom_attribute = custom_attribute
+    kotti_populate()
+    root = get_root()
+    if 'paletdb' not in root.keys():
+        paletdb = Document('paletdb', title="Palets Database")
+        root['paletdb'] = paletdb
