@@ -1,5 +1,6 @@
 #from db import Pallet, Product, session
 #import os
+
 from busybrowse.resources import Palet, Product
 from amazon.api import AmazonAPI, AsinNotFound
 from kotti import get_settings
@@ -123,7 +124,6 @@ def update_with_amazon():
 
 def main(xls_path):
 
-    import pdb; pdb.set_trace()
     # for fname in os.listdir('xls'):
     #     fpath = os.path.join('xls', fname)
     #     pallets.extend(parse_xls(fpath))
@@ -136,7 +136,7 @@ def main(xls_path):
         pallet = Palet.create()
         DBSession.add(pallet)
         for product_row in pallet_row:
-            pallet.entries.append(Product(product_row))
+            pallet.children.append(Product.create_from_row(product_row))
 
         print "Imported pallet", pallet
 

@@ -12,6 +12,7 @@ from busybrowse import _
 from kotti.resources import Base
 from kotti.resources import Content
 from kotti.resources import DBSession
+from kotti.util import title_to_name
 from sqlalchemy import Boolean, Float
 from sqlalchemy import Column
 from sqlalchemy import ForeignKey
@@ -39,7 +40,8 @@ class Category(Content):
 
     products_with_main_category = relationship(
         "Product", backref="main_category",
-        foreign_key="Product.main_category_id") # many to one
+        foreign_keys="[Product.main_category_id]"
+        ) # many to one
 
     products_with_secondary_category = relationship(
         "Product", secondary=product_to_secondary_categories_table,\
@@ -91,17 +93,21 @@ class Product(Content):
     palet_id = Column(Integer, ForeignKey('palets.id'), index=True)
     main_category_id = Column(Integer, ForeignKey('categories.id'), index=True)
 
-    title = Column(Unicode(512), index=True)
+    #title = Column(Unicode(512), index=True)
     condition = Column(Unicode(128))   # C-Ware
     net_price = Column(Float(asdecimal=True))
 
     amazon_link = Column(URLType)
-    description = Column(Unicode)      # amazon product description
+    #description = Column(Unicode)      # amazon product description
     amazon_title = Column(Unicode(512), index=True)
     asin = Column(Unicode(128), index=True)
     ean = Column(Unicode(128), index=True)
 
-    annotations = Column(Unicode)               # xml product result
+    # extracted info
+    human_price = Column(Unicode(40))
+    features = Column(Unicode)
+
+    metainfo = Column(Unicode)               # xml product result
     viewed = Column(Boolean, index=True)        # a fost vazut produsul?
     of_interest = Column(Boolean, index=True)   # selectata ca fiind de interes
 
@@ -115,7 +121,8 @@ class Product(Content):
         ],
     )
 
-    def __init__(self, **info):
+    @classmethod
+    def create_from_row(cls, palet, **info):
         """
             {u'ASIN': u'B000FA1A0E',
             u'Bezeichnung': u'Seat 2 Go Pick Up',
@@ -126,11 +133,17 @@ class Product(Content):
             u'SKU': u'P15161-477',
             u'VK netto': 19.85}]
         """
+
+        title = info.get('Bezeichnung') or info.get('Itemname')
+        name = title_to_name(title, blacklist=palet.keys())
+        self = Product(title=title)
         self.asin = info.get('ASIN')
         self.ean = info.get('EAN')
-        self.title = info.get('Bezeichnung') or info.get('Itemname')
         self.condition = info['Condition']
         self.net_price = info['VK netto']
+        palet[name] = self
+
+        return self
 
 
 # class CustomContent(Content):
