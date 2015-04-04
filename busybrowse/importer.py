@@ -1,12 +1,4 @@
-#from amazon.api import AmazonAPI, AsinNotFound
-#from db import Pallet, Product, session
-#from kotti import get_settings
-#from sqlalchemy.sql.expression import not_
-#import os
-#import time
-
 from busybrowse.resources import Palet, Product
-from kotti import DBSession
 from kotti.util import command
 import lxml.etree
 import xlrd
@@ -27,41 +19,43 @@ def _product_row(row, header):
 
 
 def parse_xls(path):
-    """ Returns a list of pallets
+    """ Returns a list of palets
     """
 
     doc = xlrd.open_workbook(path)
     sheet = doc.sheets()[0]
     header = dict([(k, x.value) for k, x in enumerate(sheet.row(0))])
 
-    pallets = []
-    current_pallet = []
+    palets = []
+    current_palet = []
     for i in range(1, sheet.nrows):
         if not sheet.row(i)[0].value.strip():
-            pallets.append(current_pallet[:])
-            current_pallet = []
+            palets.append(current_palet[:])
+            current_palet = []
             continue
-        current_pallet.append(_product_row(sheet.row(i), header))
+        current_palet.append(_product_row(sheet.row(i), header))
 
-    return pallets
+    return palets
 
 
 def main(xls_path):
 
-    pallets = parse_xls(xls_path)
+    palets = parse_xls(xls_path)
 
-    print "Got {} pallets".format(len(pallets))
+    print "Got {} palets".format(len(palets))
 
-    for pallet_row in pallets:
-        pallet = Palet.create()
-        DBSession.add(pallet)
-        for product_row in pallet_row:
-            pallet.children.append(Product.create_from_row(product_row))
+    i = 0
+    for palet_data in palets:
+        palet = Palet.create()
+        for product_row in palet_data:
+            Product.create(palet, **product_row)
 
-        print "Imported pallet", pallet
+        print "Imported palet", palet
+        i += 1
+        if i == 3:
+            break
 
-    DBSession.commit()
-
+    import transaction; transaction.commit()
 
 def importer_command():
     __doc__ = """ Import an XLS file.
@@ -76,16 +70,3 @@ def importer_command():
         lambda args:main(xls_path=args['<xls-path>']),
         __doc__
     )
-
-
-# def update_with_amazon(self):
-#     products = DBSession.query(Product)
-#     count = products.count()
-#     i = 0
-#     for product in products:
-#         i += 1
-#         print "Updating {} of {}".format(i, count)
-#         if product.annotations:
-#             print "Already updated", product
-#             continue
-#         self.update_product(product)

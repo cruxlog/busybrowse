@@ -31,16 +31,11 @@ import time
 
 
 not_found = set()
-
-
-
 NS = {'a': "http://webservices.amazon.com/AWSECommerceService/2011-08-01"}
+URLType = String(512)
 
 def xpath(el, qs):
     return el.xpath(qs, namespaces=NS)
-
-
-URLType = String(512)
 
 
 product_to_secondary_categories_table = Table(
@@ -48,6 +43,20 @@ product_to_secondary_categories_table = Table(
     Column('product_id', Integer, ForeignKey('products.id')),
     Column('category_id', Integer, ForeignKey('categories.id')),
 )
+
+NOASIN = "NOASIN"
+NOTFOUND = "NOTFOUND"
+ERRORS = "ERRORS"
+
+error_codes = [NOASIN, NOTFOUND, ERRORS]
+
+
+class NotFound(Base):
+    id = Column(Integer, primary_key=True)
+    asin = Column(String, index=True)
+
+    def __init__(self, asin):
+        self.asin = asin
 
 
 class Category(Content):
@@ -80,42 +89,45 @@ class Category(Content):
 class Palet(Content):
     __tablename__ = 'palets'
 
-    id = Column(Integer, ForeignKey('contents.id'), primary_key=True)
-    unique_id = Column(Integer) # used by humans, can be edited
-
-    of_interest = Column(Boolean)   # daca e selectata ca fiind de interes
-    entries = relationship("Product", backref='palet',
-                           foreign_keys="[Product.palet_id]")
-
     type_info = Content.type_info.copy(
         name=u'Palet',
         title=_(u'Palet'),
         add_view=u'add_palet',
         addable_to=[u'Document'],
-        selectable_default_views=[
-            #("alternative-view", _(u"alternative view")),
-        ],
+        selectable_default_views=[],
     )
+
+    id = Column(Integer, ForeignKey('contents.id'), primary_key=True)
+    unique_id = Column(Integer, index=True)
+
+    of_interest = Column(Boolean)   # daca e selectata ca fiind de interes
+
+    # entries = relationship("Product", backref='palet',
+    #                        foreign_keys="[Product.palet_id]")
 
     @classmethod
     def create(cls):
-        m = DBSession.query(functions.max(cls.unique_id)).scalar()
-        m = int(m or 0)
-        entry = cls()
-        entry.unique_id = m + 1
-        DBSession.add(entry)
-        return entry
+        m = int(DBSession.query(functions.max(cls.unique_id)).scalar() or 1)
 
-    @property
-    def title(self):
-        return "Palet #{}".format(self.unique_id)
-
-    def __repr__(self):
-        return self.title
+        root = get_root()['paletdb']
+        title = u"Palet {}".format(m)
+        name = title_to_name(title, blacklist=root.keys())
+        self = cls(name=name, title=title)
+        self.unique_id = m + 1
+        root[name] = self
+        return self
 
 
 class Product(Content):
     __tablename__ = 'products'
+
+    type_info = Content.type_info.copy(
+        name=u'Product',
+        title=_(u'Product'),
+        add_view=u'add_product',
+        addable_to=[u'Document'],
+        selectable_default_views=[],
+    )
 
     # Foreign keys for relationships
     id = Column(Integer, ForeignKey('contents.id'), primary_key=True)
@@ -143,9 +155,6 @@ class Product(Content):
     # Title from Amazon
     amazon_title = Column(Unicode(512), index=True)
 
-    # Name of product, as expressed in XLS file
-    product_name = Column(Unicode(512), index=True)
-
     # ASIN code, used to identify product on AMAZON
     asin = Column(Unicode(128), index=True)
 
@@ -172,16 +181,17 @@ class Product(Content):
     viewed = Column(Boolean, index=True)        # a fost vazut produsul?
     of_interest = Column(Boolean, index=True)   # selectata ca fiind de interes
 
-    type_info = Content.type_info.copy(
-        name=u'Product',
-        title=_(u'Product'),
-        add_view=u'add_product',
-        addable_to=[u'Document'],
-        selectable_default_views=[],
-    )
+    __xml = None
+
+    @property
+    def _xml(self):
+        if self.__xml is None:
+            root = lxml.etree.fromstring(self.amazon_data)
+            self.__xml = root
+        return self.__xml
 
     @classmethod
-    def create_from_row(cls, palet, **info):
+    def create(cls, palet, **info):
         """
             {u'ASIN': u'B000FA1A0E',
             u'Bezeichnung': u'Seat 2 Go Pick Up',
@@ -193,97 +203,106 @@ class Product(Content):
             u'VK netto': 19.85}]
         """
 
-        product_name = info.get('Bezeichnung') or info.get('Itemname')
-        name = title_to_name(product_name, blacklist=palet.keys())
+        title = info.get('Bezeichnung') or info.get('Itemname')
+        name = title_to_name(title, blacklist=palet.keys())
 
-        self = Product(title=product_name)
-        self.asin = info.get('ASIN')
-        self.ean = info.get('EAN')
-        self.condition = info['Condition']
-        self.net_price = info['VK netto']
+        self = Product(title=title)
         palet[name] = self
 
-        self.fetch_and_update()
+        self.asin = info.get('ASIN')
+        self.ean = info.get('EAN')
 
-        DBSession.commit()
+        self.condition = info['Condition']
+        self.net_price = info['VK netto']
+
+        self.amazon_data = self._get_amazon_data()
+
+        print "Recorded new product", self.title
+
+        if self.amazon_data in error_codes:
+            return self
+
+        self.amazon_title         = self._extract_title()
+        self.description          = self._extract_description()
+        self.amazon_link          = self._extract_amazon_link()
+        self.image                = self._extract_image()
+        self.secondary_categories = self._extract_categories()
+        self.main_category        = self._extract_main_category()
+        self.features             = self._extract_features()
+        self.human_price          = self._extract_human_price()
+
+        print "Extracted amazon info", self.amazon_link
 
         return self
 
-    def _extract_data(self):
-        result = {
-            'amazon_title': '',
-            'categories': [],
-            'description': '',
-            'features': [],
-            'image': '',
-            'main_category': None,
-            'human_price': 'NOPRICE',
-            'title': self.product_name,
-        }
-
-        if (not self.amazon_data) or (self.amazon_data == u'notfound'):
-            return result
-
-        root = lxml.etree.fromstring(self.amazon_data)
-
+    def _extract_image(self):
         images = [
             xpath(elimg, 'a:URL')[0].text
-            for elimg in xpath(root, '//a:LargeImage')
+            for elimg in xpath(self._xml, '//a:LargeImage')
         ]
         image = images and images[0] or ''
+        return image
 
+    def _extract_description(self):
+        description = u'\n'.join(
+            xpath(self._xml,
+                  '//a:EditorialReviews/a:EditorialReview/a:Content/text()')
+        )
+        return description
+
+    def _extract_title(self):
+        title = xpath(self._xml, '//a:ItemAttributes/a:Title/text()')[0]
+        return title
+
+    def _extract_amazon_link(self):
+        link = xpath(self._xml, '//a:DetailPageURL/text()')[0]
+        return link
+
+    def _extract_categories(self):
         _categories = [
-            x for x in xpath(root, '//a:BrowseNode/a:Name/text()')
+            x for x in xpath(self._xml, '//a:BrowseNode/a:Name/text()')
             if x != 'Categories'
         ]
         categories = [Category.get_or_create(title) for title in _categories]
+        return categories
 
-        _main_category = xpath(root, '//a:ProductGroup/text()')
+    def _extract_main_category(self):
+        _main_category = xpath(self._xml, '//a:ProductGroup/text()')
         _main_category = _main_category and _main_category[0] or 'NoMainCategory'
         main_category = Category.get_or_create(_main_category)
+        return main_category
 
-        description = xpath(root, '//a:Content/text()')
-        description = description and description[0] or ''
+    def _extract_human_price(self):
+        node = xpath(self._xml, '//a:Price/a:FormattedPrice/text()')
+        if node:
+            return node[0]
 
-        human_price = xpath(root, '//a:Price/a:FormattedPrice/text()')
-        human_price = human_price and human_price[0] or 'NOPRICE'
+        node = xpath(self._xml, '//a:ListPrice/a:FormattedPrice/text()')
+        if node:
+            return node[0]
 
-        features = xpath(root, '//a:Feature/text()')
+    def _extract_features(self):
+        features = xpath(self._xml, '//a:Feature/text()')
+        return u'\n'.join(features)
 
-        result.update({
-            'title': self.amazon_title or self.title,
-            'amazon_title': self.amazon_title or '',
-            'description': description,
-
-            'main_category': main_category,
-            'categories': categories,
-
-            'features': features,
-            'image': image,
-            'price': human_price,
-        })
-
-        return result
-
-    def fetch_and_update(self):
+    def _get_amazon_data(self):
         settings = get_settings()
 
         AMAZON_ACCESS_KEY = settings['busybrowse.AMAZON_ACCESS_KEY']
         AMAZON_SECRET_KEY = settings['busybrowse.AMAZON_SECRET_KEY']
         AMAZON_ASSOC_TAG = settings['busybrowse.AMAZON_ASSOC_TAG']
 
-        print "Updating", self.title
         AZ = AmazonAPI(AMAZON_ACCESS_KEY, AMAZON_SECRET_KEY, AMAZON_ASSOC_TAG)
 
         if not self.asin:
-            print "No ASIN"
+            # print "No ASIN"
             # todo: update from here using EAN
-            info = "http://www.upcindex.com/746775167080"
-            return
+            # info = "http://www.upcindex.com/746775167080"
+            return NOASIN
 
-        if self.asin in not_found:
-            print "On not found list"
-            return
+        if DBSession.query(NotFound.id).filter_by(asin = self.asin).count():
+            print "On not found list", self.asin
+            return NOTFOUND
 
         # first, try to find product info that already exists
         other = DBSession.query(Product).filter(
@@ -293,36 +312,28 @@ class Product(Content):
 
         if other is not None:
             print "Getting info from", other.id, other.title
-            if other.amazon_data == 'notfound':
-                not_found.add(self.asin)
-            self.amazon_data = other.amazon_data
-            self.amazon_title = other.amazon_title
-            self.description = other.description
-            DBSession.commit()
-            return
+            return other.amazon_data
 
         counter = 0
         while True:
             try:
                 info = AZ.lookup(ItemId=self.asin)
-                #time.sleep(1)
                 break
             except AsinNotFound:
                 print "ASIN not found", self.asin
                 # TODO: try other sites
-                not_found.add(self.asin)
-                self.amazon_data = "notfound"
-                return
+                notfound = NotFound(self.asin)
+                DBSession.add(notfound)
+                return NOTFOUND
             except:
                 counter += 1
                 if counter > 10:
                     print "Too many errors"
-                    return
+                    return ERRORS
+
                 time.sleep(1)
 
-        self.amazon_title = info.title
-        self.description = info.editorial_review
-        self.amazon_data = info.to_string()
+        return info.to_string()
 
 
 def populate():
@@ -335,3 +346,19 @@ def populate():
     if 'paletdb' not in root.keys():
         paletdb = Document('paletdb', title="Palets Database")
         root['paletdb'] = paletdb
+
+
+
+
+        # print "Updating", self.title
+        #
+        # if not self.asin:
+        #     print "No ASIN"
+        #     # todo: update from here using EAN
+        #     info = "http://www.upcindex.com/746775167080"
+        #     return
+        #
+        # if self.asin in not_found:
+        #     print "On not found list"
+        #     return
+
