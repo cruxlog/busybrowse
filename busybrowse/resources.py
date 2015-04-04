@@ -59,9 +59,10 @@ class NotFound(Base):
         self.asin = asin
 
 
-class Category(Content):
+class Category(Base):
     __tablename__ = "categories"
-    id = Column(Integer, ForeignKey('contents.id'), primary_key=True)
+
+    id = Column(Integer, primary_key=True)
 
     products_with_main_category = relationship(
         "Product", backref="main_category",
@@ -102,9 +103,6 @@ class Palet(Content):
 
     of_interest = Column(Boolean)   # daca e selectata ca fiind de interes
 
-    # entries = relationship("Product", backref='palet',
-    #                        foreign_keys="[Product.palet_id]")
-
     @classmethod
     def create(cls):
         m = int(DBSession.query(functions.max(cls.unique_id)).scalar() or 1)
@@ -116,6 +114,14 @@ class Palet(Content):
         self.unique_id = m + 1
         root[name] = self
         return self
+
+    def price_of_products(self):
+        return 0
+
+    def number_of_products(self):
+        children = DBSession.query(Product.id).filter(
+            Product.parent_id == self.id)
+        return children.count()
 
 
 class Product(Content):

@@ -46,6 +46,7 @@ def main(xls_path):
 
     i = 0
     for palet_data in palets:
+        import pdb; pdb.set_trace()
         palet = Palet.create()
         for product_row in palet_data:
             Product.create(palet, **product_row)

@@ -15,11 +15,25 @@
         <h3 class="panel-title">Palets Database</h3>
       </div>
       <div class="panel-body">
-        <ul class="list-group"> 
-          <li tal:repeat="palet palets" class="list-group-item">
-            <a href="${request.resource_url(palet)}">Palet title</a>
-          </li>
-        </ul>
+
+        <table class="table table-striped table-hover">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Palet Title</th>
+              <th>Products</th>
+              <th>Price of products</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr tal:repeat="palet palets">
+              <td>${palet.unique_id}</td>
+              <td><a href="${request.resource_url(palet)}">${palet.title}</a></td>
+              <td>${palet.number_of_products()}</td>
+              <td>${palet.price_of_products()}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
       <div class="panel-footer">
       </div>
