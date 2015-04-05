@@ -9,7 +9,6 @@
   <article metal:fill-slot="content"
     class="content palet-view"
     i18n:domain="busybrowse">
-              data-asin="${product.asin"
 
     <div class="panel panel-default">
       <div class="panel-heading">
@@ -34,7 +33,7 @@
           <tbody>
             <tr 
               class="product_row ${{True:'success', False:'danger'}.get(product.of_interest)}"
-              data-asin='1'
+              data-asin="${product.asin}"
               id="product_${product.id}"
               tal:repeat="product context.children" 
               rel="${request.resource_url(product)}mark">
