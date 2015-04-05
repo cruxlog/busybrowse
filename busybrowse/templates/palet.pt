@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+  xml:lang="en"
+  xmlns:i18n="http://xml.zope.org/namespaces/i18n"
+  xmlns:tal="http://xml.zope.org/namespaces/tal"
+  xmlns:metal="http://xml.zope.org/namespaces/metal"
+  metal:use-macro="api.macro('kotti:templates/view/master.pt')">
+
+  <article metal:fill-slot="content"
+    class="content palet-view"
+    i18n:domain="busybrowse">
+
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">
+          ${context.title}: ${context.number_of_products()} produse, &euro;${'{:.2f}'.format(context.price_of_products())}
+        </h3>
+      </div>
+      <div class="panel-body">
+
+        <table class="table table-striped table-hover">
+          <thead>
+            <tr>
+              <th>A</th>
+              <th>R</th>
+              <th>Image</th>
+              <th>Product title</th>
+              <th>Category</th>
+              <th>Condition</th>
+              <th>Price</th>
+              <th>Amazon</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr tal:repeat="product context.children">
+              <form method="POST" action="${request.resource_url(product)}/mark">
+                <input type="hidden" name="product_id" value="${product.id}" />
+                <td>
+                  <input type="radio" name="of_interest" />
+                </td>
+                <td>
+                  <input type="radio" name="of_interest" />
+                </td>
+              </form>
+              <td tal:define="image product.amazon_title and product.thumbnail()">
+                <img tal:condition="image" src="${image}" />
+                <span tal:condition="not image">${product.asin}</span>
+              </td>
+              <td>
+                <!-- <a href="${request.resource_url(product)}">${product.amazon_title or product.title}</a> -->
+                <span tal:condition="product.amazon_link" >
+                  <a href="${product.amazon_link}">
+                    ${product.amazon_title}
+                    <span class="glyphicon glyphicon-share"></span></a>
+                </span>
+                <span tal:condition="not product.amazon_link">${product.title}</span>
+              </td>
+              <td>
+                ${product.main_category and product.main_category.title or ''}&nbsp;
+                <button 
+                  tal:condition="product.secondary_categories" 
+                  type="button" class="btn btn-xs btn-info"
+                  data-toggle="popover" title="Secondary Categories" 
+                  data-content="${u', '.join([c.title for c in product.secondary_categories])}">
+                  <span class="glyphicon glyphicon-list"></span>
+                </button>
+              </td>
+              <td>${product.condition}</td>
+              <td>&euro;${'{:.2f}'.format(product.net_price)}</td>
+              <td>${product.human_price}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="panel-footer">
+      </div>
+    </div>
+  <script>
+    $(function () {
+      $('[data-toggle="popover"]').popover();
+    });
+  </script>
+
+  </article>
+</html>
+

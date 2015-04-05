@@ -5,9 +5,6 @@ Created on 2015-03-29
 :author: Cruxlog (cruxlog@pixelblaster.ro)
 """
 
-#from kotti.interfaces import IDefaultWorkflow
-#from zope.interface import implements
-
 from amazon.api import AmazonAPI, AsinNotFound
 from busybrowse import _
 from kotti import get_settings
@@ -29,6 +26,9 @@ from sqlalchemy.sql.expression import not_
 import lxml.etree
 import time
 
+#import bottlenose.api
+#regions = bottlenose.api.SERVICE_DOMAINS.keys()
+regions = ['US', 'UK', 'CA', 'FR', 'DE', 'IT', 'ES', 'CN', 'IN', 'JP']
 
 not_found = set()
 NS = {'a': "http://webservices.amazon.com/AWSECommerceService/2011-08-01"}
@@ -63,6 +63,7 @@ class Category(Base):
     __tablename__ = "categories"
 
     id = Column(Integer, primary_key=True)
+    title = Column(Unicode(200), index=True)
 
     products_with_main_category = relationship(
         "Product", backref="main_category",
@@ -79,10 +80,7 @@ class Category(Base):
         c = DBSession.query(Category).filter_by(title=title).first()
         if c is None:
             c = Category(title=title)
-            root = get_root()
-            id = title_to_name(u"Category {}".format(title),
-                               blacklist=root.keys())
-            get_root()[id] = c
+            DBSession.add(c)
 
         return c
 
@@ -105,18 +103,21 @@ class Palet(Content):
 
     @classmethod
     def create(cls):
-        m = int(DBSession.query(functions.max(cls.unique_id)).scalar() or 1)
+        m = int(DBSession.query(functions.max(cls.unique_id)).scalar() or 0)
+        m += 1
 
         root = get_root()['paletdb']
         title = u"Palet {}".format(m)
         name = title_to_name(title, blacklist=root.keys())
         self = cls(name=name, title=title)
-        self.unique_id = m + 1
+        self.unique_id = m
         root[name] = self
         return self
 
     def price_of_products(self):
-        return 0
+        return DBSession.query(
+            functions.sum(Product.net_price).label('total_price')
+        ).filter(Product.parent_id==self.id).all()[0][0]
 
     def number_of_products(self):
         children = DBSession.query(Product.id).filter(
@@ -241,24 +242,32 @@ class Product(Content):
 
         return self
 
-    def _extract_image(self):
+    def thumbnail(self):
+        return self._extract_image('Medium')
+
+    def _extract_image(self, size='Large'):
         images = [
             xpath(elimg, 'a:URL')[0].text
-            for elimg in xpath(self._xml, '//a:LargeImage')
+            for elimg in xpath(self._xml, '//a:%sImage' % size)
         ]
         image = images and images[0] or ''
         return image
 
     def _extract_description(self):
-        description = u'\n'.join(
-            xpath(self._xml,
-                  '//a:EditorialReviews/a:EditorialReview/a:Content/text()')
-        )
+        try:
+            description = u'\n'.join(
+                xpath(self._xml,
+                    '//a:EditorialReviews/a:EditorialReview/a:Content/text()')
+            )
+        except:
+            description = u""
         return description
 
     def _extract_title(self):
-        title = xpath(self._xml, '//a:ItemAttributes/a:Title/text()')[0]
-        return title
+        try:
+            return xpath(self._xml, '//a:ItemAttributes/a:Title/text()')[0]
+        except:
+            return u""
 
     def _extract_amazon_link(self):
         link = xpath(self._xml, '//a:DetailPageURL/text()')[0]
@@ -298,8 +307,6 @@ class Product(Content):
         AMAZON_SECRET_KEY = settings['busybrowse.AMAZON_SECRET_KEY']
         AMAZON_ASSOC_TAG = settings['busybrowse.AMAZON_ASSOC_TAG']
 
-        AZ = AmazonAPI(AMAZON_ACCESS_KEY, AMAZON_SECRET_KEY, AMAZON_ASSOC_TAG)
-
         if not self.asin:
             # print "No ASIN"
             # todo: update from here using EAN
@@ -320,24 +327,39 @@ class Product(Content):
             print "Getting info from", other.id, other.title
             return other.amazon_data
 
-        counter = 0
-        while True:
-            try:
-                info = AZ.lookup(ItemId=self.asin)
-                break
-            except AsinNotFound:
-                print "ASIN not found", self.asin
-                # TODO: try other sites
-                notfound = NotFound(self.asin)
-                DBSession.add(notfound)
-                return NOTFOUND
-            except:
-                counter += 1
-                if counter > 10:
-                    print "Too many errors"
-                    return ERRORS
+        info = None
+        for region in regions:
+            counter = 0
+            while True:
+                AZ = AmazonAPI(AMAZON_ACCESS_KEY, AMAZON_SECRET_KEY,
+                               AMAZON_ASSOC_TAG, region=region)
+                try:
+                    info = AZ.lookup(ItemId=self.asin)
+                    break
+                except AsinNotFound:
+                    info = None
+                    break
+                except:
+                    counter += 1
+                    if counter > 10:
+                        print "Too many errors"
+                        break
 
-                time.sleep(1)
+                    time.sleep(1)
+                    continue
+
+                break
+
+            if info is None:
+                continue
+            else:
+                break
+
+        if info is None:
+            print "ASIN not found", self.asin   # TODO: try other sites
+            notfound = NotFound(self.asin)
+            DBSession.add(notfound)
+            return NOTFOUND
 
         return info.to_string()
 

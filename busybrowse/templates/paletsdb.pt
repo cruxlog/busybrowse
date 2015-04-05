@@ -30,7 +30,7 @@
               <td>${palet.unique_id}</td>
               <td><a href="${request.resource_url(palet)}">${palet.title}</a></td>
               <td>${palet.number_of_products()}</td>
-              <td>${palet.price_of_products()}</td>
+              <td>${'{:.2f}'.format(palet.price_of_products())}</td>
             </tr>
           </tbody>
         </table>

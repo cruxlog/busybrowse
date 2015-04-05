@@ -6,6 +6,7 @@ Created on 2015-03-29
 """
 
 from busybrowse.resources import Palet
+from busybrowse.resources import Product
 from kotti import DBSession
 from pyramid.view import view_config
 
@@ -15,6 +16,23 @@ from pyramid.view import view_config
 def paletsdb_index(context, request):
     palets = DBSession.query(Palet)
     return {'palets': palets}
+
+
+@view_config(name='view', context=Palet, permission='view',
+             renderer='busybrowse:templates/palet.pt')
+def view_palet(context, request):
+    return {}
+
+
+@view_config(name="mark", context=Product, permission='view', renderer='json')
+def mark_product(context, request):
+    product_id = int(request.POST.get('product_id'))
+    of_interest = bool(request.POST.get('of_interest'))
+
+    product = DBSession.query(Product).get(product_id)
+    product.of_interest = of_interest
+
+    return {'of_interest': of_interest}
 
 
 # from pyramid.view import view_config

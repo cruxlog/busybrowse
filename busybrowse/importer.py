@@ -35,7 +35,8 @@ def parse_xls(path):
             continue
         current_palet.append(_product_row(sheet.row(i), header))
 
-    return palets
+    # filter empty palets; this is caused by double spacing between palets
+    return [x for x in palets if x]
 
 
 def main(xls_path):
@@ -46,7 +47,6 @@ def main(xls_path):
 
     i = 0
     for palet_data in palets:
-        import pdb; pdb.set_trace()
         palet = Palet.create()
         for product_row in palet_data:
             Product.create(palet, **product_row)
