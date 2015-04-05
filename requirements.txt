@@ -1,1 +1,2 @@
 -r https://raw.github.com/Kotti/Kotti/master/requirements.txt
+uwsgi

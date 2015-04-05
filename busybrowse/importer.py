@@ -52,11 +52,8 @@ def main(xls_path):
             Product.create(palet, **product_row)
 
         print "Imported palet", palet
-        i += 1
-        if i == 3:
-            break
 
-    import transaction; transaction.commit()
+        import transaction; transaction.commit()
 
 def importer_command():
     __doc__ = """ Import an XLS file.

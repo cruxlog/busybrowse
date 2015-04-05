@@ -25,6 +25,9 @@ from sqlalchemy.sql import functions
 from sqlalchemy.sql.expression import not_
 import lxml.etree
 import time
+import logging
+
+log = logging.getLogger("BB")
 
 #import bottlenose.api
 #regions = bottlenose.api.SERVICE_DOMAINS.keys()
@@ -236,7 +239,7 @@ class Product(Content):
 
         self.amazon_data = self._get_amazon_data()
 
-        print "Recorded new product", self.title
+        log.info(u"Recorded new product %s", self.title)
 
         if self.amazon_data in error_codes:
             return self
@@ -250,7 +253,7 @@ class Product(Content):
         self.features             = self._extract_features()
         self.human_price          = self._extract_human_price()
 
-        print "Extracted amazon info", self.amazon_link
+        log.info(u"Extracted amazon info %s", self.amazon_link)
 
         return self
 
@@ -326,7 +329,7 @@ class Product(Content):
             return NOASIN
 
         if DBSession.query(NotFound.id).filter_by(asin = self.asin).count():
-            print "On not found list", self.asin
+            log.info(u"On not found list %s", self.asin)
             return NOTFOUND
 
         # first, try to find product info that already exists
@@ -336,7 +339,7 @@ class Product(Content):
         ).first()
 
         if other is not None:
-            print "Getting info from", other.id, other.title
+            log.info(u"Getting info from %s: %s", other.id, other.title)
             return other.amazon_data
 
         info = None
@@ -354,7 +357,7 @@ class Product(Content):
                 except:
                     counter += 1
                     if counter > 10:
-                        print "Too many errors"
+                        log.info("Too many errors")
                         break
 
                     time.sleep(1)
@@ -368,7 +371,7 @@ class Product(Content):
                 break
 
         if info is None:
-            print "ASIN not found", self.asin   # TODO: try other sites
+            log.info("ASIN not found: %s", self.asin)   # TODO: try other sites
             notfound = NotFound(self.asin)
             DBSession.add(notfound)
             return NOTFOUND
@@ -386,19 +389,4 @@ def populate():
     if 'paletdb' not in root.keys():
         paletdb = Document('paletdb', title="Palets Database")
         root['paletdb'] = paletdb
-
-
-
-
-        # print "Updating", self.title
-        #
-        # if not self.asin:
-        #     print "No ASIN"
-        #     # todo: update from here using EAN
-        #     info = "http://www.upcindex.com/746775167080"
-        #     return
-        #
-        # if self.asin in not_found:
-        #     print "On not found list"
-        #     return
 
