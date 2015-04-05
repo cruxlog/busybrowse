@@ -24,52 +24,18 @@ def view_palet(context, request):
     return {}
 
 
-@view_config(name="mark", context=Product, permission='view', renderer='json')
-def mark_product(context, request):
+@view_config(name="mark", context=Palet, permission='view', renderer='json')
+def mark_of_interest_palet(context, request):
     of_interest = bool(request.POST.get('of_interest', '').lower() == 'true')
     context.of_interest = of_interest
-    return {'of_interest': of_interest, 'product_id': context.id}
+
+    return {'of_interest': of_interest, 'context_id': context.id}
 
 
-# from pyramid.view import view_config
-# from pyramid.view import view_defaults
-#
-# from busybrowse import _
-# from busybrowse.resources import CustomContent
-# from busybrowse.fanstatic import css_and_js
-# from busybrowse.views import BaseView
-#
-
-# @view_defaults(context=CustomContent, permission='view')
-# class CustomContentViews(BaseView):
-#     """ Views for :class:`busybrowse.resources.CustomContent` """
-#
-#     @view_config(name='view', permission='view',
-#                  renderer='busybrowse:templates/custom-content-default.pt')
-#     def default_view(self):
-#         """ Default view for :class:`busybrowse.resources.CustomContent`
-#
-#         :result: Dictionary needed to render the template.
-#         :rtype: dict
-#         """
-#
-#         return {
-#             'foo': _(u'bar'),
-#         }
-#
-#     @view_config(name='alternative-view', permission='view',
-#                  renderer='busybrowse:templates/custom-content-alternative.pt')
-#     def alternative_view(self):
-#         """ Alternative view for :class:`busybrowse.resources.CustomContent`.
-#         This view requires the JS / CSS resources defined in
-#         :mod:`busybrowse.fanstatic`.
-#
-#         :result: Dictionary needed to render the template.
-#         :rtype: dict
-#         """
-#
-#         css_and_js.need()
-#
-#         return {
-#             'foo': _(u'bar'),
-#         }
+@view_config(name="mark", context=Product, permission='view', renderer='json')
+def mark_of_interest_product(context, request):
+    of_interest = bool(request.POST.get('of_interest', '').lower() == 'true')
+    products = DBSession.query(Product).filter(Product.asin==context.asin)
+    count = products.update({"of_interest": of_interest})
+    print "Marked ", count
+    return {'of_interest': of_interest, 'context_id': context.id}

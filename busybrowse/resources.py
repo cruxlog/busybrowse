@@ -124,6 +124,18 @@ class Palet(Content):
             Product.parent_id == self.id)
         return children.count()
 
+    def wanted_products(self):
+        children = DBSession.query(Product.id).filter(
+            Product.parent_id == self.id)
+        query = children.filter(Product.of_interest==True)
+        return query.count()
+
+    def not_wanted_products(self):
+        children = DBSession.query(Product.id).filter(
+            Product.parent_id == self.id)
+        query = children.filter(Product.of_interest==False)
+        return query.count()
+
 
 class Product(Content):
     __tablename__ = 'products'

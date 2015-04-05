@@ -9,6 +9,7 @@
   <article metal:fill-slot="content"
     class="content palet-view"
     i18n:domain="busybrowse">
+              data-asin="${product.asin"
 
     <div class="panel panel-default">
       <div class="panel-heading">
@@ -31,14 +32,17 @@
             </tr>
           </thead>
           <tbody>
-            <tr class="product_row ${{True:'success', False:'danger'}.get(product.of_interest)}" id="${product.id}"
+            <tr 
+              class="product_row ${{True:'success', False:'danger'}.get(product.of_interest)}"
+              data-asin='1'
+              id="product_${product.id}"
               tal:repeat="product context.children" 
               rel="${request.resource_url(product)}mark">
               <input type="hidden" name="product_id" value="${product.id}" />
-              <td>
+              <td class="toggler success">
                 <input type="radio" checked="${product.of_interest == True}" name="of_interest_${product.id}" value="true" />
               </td>
-              <td>
+              <td class="toggler danger">
                 <input type="radio" checked="${product.of_interest == False}" name="of_interest_${product.id}" value="false" />
               </td>
               <td tal:define="image product.amazon_title and product.thumbnail()">
@@ -77,27 +81,32 @@
   <script>
     $(function () {
       $('[data-toggle="popover"]').popover();
+      $('.toggler').on('click', function(){
+        var $input = $(this).find('input');
+        $input.prop('checked', true);
+        $input.trigger('change');
+      });
       $(".product_row input").change(function(){
         var $row = $(this).parents('tr')
         var url = $row.attr('rel');
         var of_interest = $row.find('input[type="radio"]:checked').val();
-        console.log(of_interest);
-        console.log(url);
         $.ajax({
           type: 'POST',
           url: url,
           data: {of_interest:of_interest},
           success: function(data){
-            var $tr = $("#" + data.product_id);
+            var $tr = $("#product_" + data.context_id);
+            var asin = $tr.data('asin');
+            var $rows = $(".product_row[data-asin='" + asin + "']");
+
             if (data.of_interest === true) {
-              $tr.addClass('success');
-              $tr.removeClass('danger');
+              $rows.addClass('success');
+              $rows.removeClass('danger');
             }
             if (data.of_interest === false) {
-              $tr.addClass('danger');
-              $tr.removeClass('success');
+              $rows.addClass('danger');
+              $rows.removeClass('success');
             }
-            console.log(data);
           }
         });
       });

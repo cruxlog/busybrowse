@@ -19,17 +19,32 @@
         <table class="table table-striped table-hover">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>A</th>
+              <th>R</th>
               <th>Palet Title</th>
               <th>Products</th>
+              <th>Want</th>
+              <th>Don't want</th>
               <th>Price of products</th>
             </tr>
           </thead>
           <tbody>
-            <tr tal:repeat="palet palets">
-              <td>${palet.unique_id}</td>
+            <tr 
+              tal:repeat="palet palets"
+              rel="${request.resource_url(palet)}mark"
+              id="palet_${palet.id}"
+              class="palet_row ${{True:'success', False:'danger'}.get(palet.of_interest)}" 
+              >
+              <td class="toggler success">
+                <input type="radio" checked="${palet.of_interest == True}" name="of_interest_${palet.id}" value='true' />
+              </td>
+              <td class="toggler danger">
+                <input type="radio" checked="${palet.of_interest == False}" name="of_interest_${palet.id}" value='false' />
+              </td>
               <td><a href="${request.resource_url(palet)}">${palet.title}</a></td>
               <td>${palet.number_of_products()}</td>
+              <td>${palet.wanted_products()}</td>
+              <td>${palet.not_wanted_products()}</td>
               <td>${'{:.2f}'.format(palet.price_of_products())}</td>
             </tr>
           </tbody>
@@ -39,5 +54,36 @@
       </div>
     </div>
 
+<script>
+    $(function () {
+      $('[data-toggle="popover"]').popover();
+      $('.toggler').on('click', function(){
+        var $input = $(this).find('input');
+        $input.prop('checked', true);
+        $input.trigger('change');
+      });
+      $(".palet_row input").change(function(){
+        var $row = $(this).parents('tr')
+        var url = $row.attr('rel');
+        var of_interest = $row.find('input[type="radio"]:checked').val();
+        $.ajax({
+          type: 'POST',
+          url: url,
+          data: {of_interest:of_interest},
+          success: function(data){
+            var $tr = $("#palet_" + data.context_id);
+            if (data.of_interest === true) {
+              $tr.addClass('success');
+              $tr.removeClass('danger');
+            }
+            if (data.of_interest === false) {
+              $tr.addClass('danger');
+              $tr.removeClass('success');
+            }
+          }
+        });
+      });
+    });
+  </script>
   </article>
 </html>
