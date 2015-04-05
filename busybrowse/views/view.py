@@ -26,13 +26,9 @@ def view_palet(context, request):
 
 @view_config(name="mark", context=Product, permission='view', renderer='json')
 def mark_product(context, request):
-    product_id = int(request.POST.get('product_id'))
-    of_interest = bool(request.POST.get('of_interest'))
-
-    product = DBSession.query(Product).get(product_id)
-    product.of_interest = of_interest
-
-    return {'of_interest': of_interest}
+    of_interest = bool(request.POST.get('of_interest', '').lower() == 'true')
+    context.of_interest = of_interest
+    return {'of_interest': of_interest, 'product_id': context.id}
 
 
 # from pyramid.view import view_config

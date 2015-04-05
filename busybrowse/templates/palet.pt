@@ -17,7 +17,6 @@
         </h3>
       </div>
       <div class="panel-body">
-
         <table class="table table-striped table-hover">
           <thead>
             <tr>
@@ -32,16 +31,16 @@
             </tr>
           </thead>
           <tbody>
-            <tr tal:repeat="product context.children">
-              <form method="POST" action="${request.resource_url(product)}/mark">
-                <input type="hidden" name="product_id" value="${product.id}" />
-                <td>
-                  <input type="radio" name="of_interest" />
-                </td>
-                <td>
-                  <input type="radio" name="of_interest" />
-                </td>
-              </form>
+            <tr class="product_row ${{True:'success', False:'danger'}.get(product.of_interest)}" id="${product.id}"
+              tal:repeat="product context.children" 
+              rel="${request.resource_url(product)}mark">
+              <input type="hidden" name="product_id" value="${product.id}" />
+              <td>
+                <input type="radio" checked="${product.of_interest == True}" name="of_interest_${product.id}" value="true" />
+              </td>
+              <td>
+                <input type="radio" checked="${product.of_interest == False}" name="of_interest_${product.id}" value="false" />
+              </td>
               <td tal:define="image product.amazon_title and product.thumbnail()">
                 <img tal:condition="image" src="${image}" />
                 <span tal:condition="not image">${product.asin}</span>
@@ -78,9 +77,32 @@
   <script>
     $(function () {
       $('[data-toggle="popover"]').popover();
+      $(".product_row input").change(function(){
+        var $row = $(this).parents('tr')
+        var url = $row.attr('rel');
+        var of_interest = $row.find('input[type="radio"]:checked').val();
+        console.log(of_interest);
+        console.log(url);
+        $.ajax({
+          type: 'POST',
+          url: url,
+          data: {of_interest:of_interest},
+          success: function(data){
+            var $tr = $("#" + data.product_id);
+            if (data.of_interest === true) {
+              $tr.addClass('success');
+              $tr.removeClass('danger');
+            }
+            if (data.of_interest === false) {
+              $tr.addClass('danger');
+              $tr.removeClass('success');
+            }
+            console.log(data);
+          }
+        });
+      });
     });
   </script>
 
   </article>
 </html>
-
