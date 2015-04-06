@@ -227,7 +227,7 @@ class Product(Content):
 
         title = info.get('Bezeichnung') or info.get('Itemname')
         if not title:
-            return
+            title = u"No title"
         name = title_to_name(title, blacklist=palet.keys())
 
         self = Product(title=title)
