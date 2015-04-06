@@ -13,7 +13,9 @@
     <div class="panel panel-default">
       <div class="panel-heading">
         <h3 class="panel-title">
-          ${context.title}: ${context.number_of_products()} produse, &euro;${'{:.2f}'.format(context.price_of_products())}
+          ${context.title}: ${context.number_of_products()} produse, 
+          &euro;${'{:.2f}'.format(context.price_of_products())},
+          pret mediu &euro;${'{:.2f}'.format(context.average_price())}
         </h3>
       </div>
       <div class="panel-body">
@@ -59,13 +61,15 @@
               </td>
               <td>
                 ${product.main_category and product.main_category.title or ''}&nbsp;
-                <button 
-                  tal:condition="product.secondary_categories" 
-                  type="button" class="btn btn-xs btn-info"
-                  data-toggle="popover" title="Secondary Categories" 
-                  data-content="${u', '.join([c.title for c in product.secondary_categories])}">
-                  <span class="glyphicon glyphicon-list"></span>
-                </button>
+                <div tal:replace="nothing">
+                  <button 
+                    tal:condition="product.secondary_categories" 
+                    type="button" class="btn btn-xs btn-info"
+                    data-toggle="popover" title="Secondary Categories" 
+                    data-content="${u', '.join([c.title for c in product.secondary_categories])}">
+                    <span class="glyphicon glyphicon-list"></span>
+                  </button>
+                </div>
               </td>
               <td>${product.condition}</td>
               <td>&euro;${'{:.2f}'.format(product.net_price)}</td>

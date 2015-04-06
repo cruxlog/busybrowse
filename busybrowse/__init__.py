@@ -27,6 +27,7 @@ def kotti_configure(settings):
     settings['pyramid.includes'] += ' busybrowse'
     settings['kotti.available_types'] += ' busybrowse.resources.Palet busybrowse.resources.Product'
     settings['kotti.fanstatic.view_needed'] += ' busybrowse.fanstatic.css_and_js'
+    settings['kotti.alembic_dirs'] += ' busybrowse:alembic'
 
     Document.type_info.selectable_default_views.append(
         ('paletsdb', 'Palets DB')

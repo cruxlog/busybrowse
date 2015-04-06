@@ -1,4 +1,6 @@
-from busybrowse.resources import Palet, Product
+from busybrowse.resources import Palet
+from busybrowse.resources import Product
+from kotti.resources import DBSession
 from kotti.util import command
 import lxml.etree
 import xlrd
@@ -54,6 +56,20 @@ def main(xls_path, start_from=0):
 
         import transaction; transaction.commit()
 
+
+def fixer(xls_path, **kwargs):
+    palets = parse_xls(xls_path)
+    print "Got {} palets".format(len(palets))
+
+    paletids = [x[0] for x in
+                DBSession.query(Palet.id).order_by(Palet.id).all()]
+    for index, id in enumerate(paletids):
+        obj = DBSession.query(Palet).get(id)
+        obj.sku = palets[index][0]['SKU']
+
+    import transaction; transaction.commit()
+
+
 def importer_command():
     __doc__ = """ Import an XLS file.
 
@@ -64,8 +80,10 @@ def importer_command():
         -h --help       Show this help screen
         --start-from    Palet to start from
     """
+    #cmd = main
+    cmd = fixer
     return command(
-        lambda args:main(xls_path=args['<xls-path>'],
-                         start_from=int(args.get('<start-from>', '0'))),
+        lambda args:cmd(xls_path=args['<xls-path>'],
+                         start_from=int(args.get('<start-from>') or '0')),
         __doc__
     )

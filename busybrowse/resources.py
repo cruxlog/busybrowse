@@ -102,6 +102,7 @@ class Palet(Content):
     id = Column(Integer, ForeignKey('contents.id'), primary_key=True)
     unique_id = Column(Integer, index=True)
 
+    sku = Column(Unicode(100), index=True)
     of_interest = Column(Boolean)   # daca e selectata ca fiind de interes
 
     @classmethod
@@ -138,6 +139,14 @@ class Palet(Content):
             Product.parent_id == self.id)
         query = children.filter(Product.of_interest==False)
         return query.count()
+
+    def average_price(self):
+        return self.price_of_products() / self.number_of_products()
+
+    def condition_stats(self):
+        return DBSession.query(
+            Product.condition, functions.count(Product.id)
+        ).filter(Product.parent_id==self.id).group_by(Product.condition).all()
 
 
 class Product(Content):

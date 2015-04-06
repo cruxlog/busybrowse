@@ -16,16 +16,19 @@
       </div>
       <div class="panel-body">
 
-        <table class="table table-striped table-hover">
+        <table class="table table-striped table-hover" id="palets">
           <thead>
             <tr>
+              <th> </th>
               <th>A</th>
               <th>R</th>
-              <th>Palet Title</th>
+              <th>SKU</th>
               <th>Products</th>
+              <th>Condition</th>
               <th>Want</th>
               <th>Don't want</th>
-              <th>Price of products</th>
+              <th>Average price</th>
+              <th>Total price</th>
             </tr>
           </thead>
           <tbody>
@@ -35,16 +38,21 @@
               id="palet_${palet.id}"
               class="palet_row ${{True:'success', False:'danger'}.get(palet.of_interest)}" 
               >
+              <td>${repeat['palet'].index + 1}</td>
               <td class="toggler success">
                 <input type="radio" checked="${palet.of_interest == True}" name="of_interest_${palet.id}" value='true' />
               </td>
               <td class="toggler danger">
                 <input type="radio" checked="${palet.of_interest == False}" name="of_interest_${palet.id}" value='false' />
               </td>
-              <td><a href="${request.resource_url(palet)}">${palet.title}</a></td>
+              <td><a href="${request.resource_url(palet)}">${palet.sku}</a></td>
               <td>${palet.number_of_products()}</td>
+              <td tal:define="stats palet.condition_stats()">
+                <span tal:repeat="s stats">${s[0]} (${s[1]})&nbsp;</span>
+              </td>
               <td>${palet.wanted_products()}</td>
               <td>${palet.not_wanted_products()}</td>
+              <td>${'{:.2f}'.format(palet.average_price())}</td>
               <td>${'{:.2f}'.format(palet.price_of_products())}</td>
             </tr>
           </tbody>
@@ -54,8 +62,12 @@
       </div>
     </div>
 
+    <script type="text/javascript" language="javascript" src="//cdn.datatables.net/1.10.6/js/jquery.dataTables.min.js"></script>
+    <script type="text/javascript" language="javascript" src="//cdn.datatables.net/plug-ins/1.10.6/integration/bootstrap/3/dataTables.bootstrap.js"></script>
+
 <script>
     $(function () {
+      $("#palets").dataTable();
       $('[data-toggle="popover"]').popover();
       $('.toggler').on('click', function(){
         var $input = $(this).find('input');
